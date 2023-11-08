@@ -8,6 +8,8 @@ library('rstatix')
 library('R.utils')
 library('psych')
 library('nlme')
+library("car")
+library("lme4")
 
 # Create folder for analysis outputs 
 directory_name = 'Exp_2' # Should change for each experiment type 
@@ -377,14 +379,19 @@ data_outliers_sum <- data %>%
                      identify_outliers(Sum)
 
 # Check for normality 
-data_sw_sum <- data %>%
+data_sw_sum <- try(data %>%
                group_by(Group, Time_Step) %>%
-               shapiro_test(Sum)
+               shapiro_test(Sum))
 
 # Run two-way repeated-measures ANOVA 
-rmaov_sum <- data %>% 
-             anova_test(formula = Sum ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
-             get_anova_table(rmaov_sum)
+#rmaov_sum <- data %>% 
+#             anova_test(formula = Sum ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
+#             get_anova_table(rmaov_sum)
+modlm_sum <- lmer(Sum ~ Group * Time_Step + (1 | Animal_ID), data = data)
+rmaov_sum <- car::Anova(modlm_sum, REML=TRUE, test="F")
+
+# Check linear model residuals for normality 
+rmaov_sum_sw <- shapiro_test(residuals(modlm_sum))
           
 # Pairwise comparisons post hoc with Benjamini-Hochberg correction 
 pwc_sum_group <- data %>%
@@ -393,6 +400,31 @@ pwc_sum_group <- data %>%
                  Sum ~ Group, paired = FALSE, 
                  p.adjust.method = "BH"
                  )
+
+# Fit linear model to ranks instead 
+modglm_sum <- lmer(rank(Sum) ~ Group * Time_Step + (1 | Animal_ID), data = data)
+glm_rmaov_sum <- car::Anova(modglm_sum, REML=TRUE, test="F")
+
+# Check rank-transformation linear model residuals for normality 
+glm_rmaov_sum_sw <- shapiro_test(residuals(modglm_sum))
+
+# Pairwise comparisons of ranks post hoc with Benjamini-Hochberg correction 
+data$Sum_rank <-data$Sum
+data$Sum_rank <-rank(data$Sum)
+pwc_sum_group_rank <- data %>%
+  group_by(Time_Step) %>%
+  pairwise_t_test(
+    Sum_rank ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Nonparametric pairwise comparisons post hoc with Benjamini-Hochberg correction 
+pwc_sum_group_wilcox <- data %>%
+  group_by(Time_Step) %>%
+  wilcox_test(
+    Sum ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
 
 ############################################# TIME SERIES: CUMULATIVE INTEGRAL #############################################
 
@@ -407,15 +439,20 @@ data_outliers_int <- data %>%
                      identify_outliers(Cumulative_Sum)
 
 # Check for normality 
-data_sw_int <- data %>%
+data_sw_int <- try(data %>%
                group_by(Group, Time_Step) %>%
-               shapiro_test(Cumulative_Sum)
+               shapiro_test(Cumulative_Sum))
 
 # Run two-way repeated-measures ANOVA 
-rmaov_int <- data %>% 
-             anova_test(formula = Cumulative_Sum ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Cumulative_Sum, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
-             get_anova_table(rmaov_int)
-             
+#rmaov_int <- data %>% 
+#             anova_test(formula = Cumulative_Sum ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Cumulative_Sum, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
+#             get_anova_table(rmaov_int)
+modlm_int <- lmer(Cumulative_Sum ~ Group * Time_Step + (1 | Animal_ID), data = data)
+rmaov_int <- car::Anova(modlm_int, REML=TRUE, test="F")
+
+# Check linear model residuals for normality 
+rmaov_int_sw <- shapiro_test(residuals(modlm_int))
+
 # Pairwise comparisons post hoc with Benjamini-Hochberg correction 
 pwc_int_group <- data %>%
                   group_by(Time_Step) %>%
@@ -423,6 +460,32 @@ pwc_int_group <- data %>%
                   Cumulative_Sum ~ Group, paired = FALSE, 
                   p.adjust.method = "BH"
                   )
+
+# Fit linear model to ranks instead
+modglm_int <- lmer(rank(Cumulative_Sum) ~ Group * Time_Step + (1 | Animal_ID), data = data)
+glm_rmaov_int <- car::Anova(modglm_int, REML=TRUE, test="F")
+
+# Check rank-transformation linear model residuals for normality 
+glm_rmaov_int_sw <- shapiro_test(residuals(modglm_int))
+
+# Pairwise comparisons of ranks post hoc with Benjamini-Hochberg correction 
+data$Cumulative_Sum_rank <-data$Cumulative_Sum
+data$Cumulative_Sum_rank <-rank(data$Cumulative_Sum)
+pwc_int_group_rank <- data %>%
+  group_by(Time_Step) %>%
+  pairwise_t_test(
+    Cumulative_Sum_rank ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+
+# Nonparametric pairwise comparisons post hoc with Benjamini-Hochberg correction 
+pwc_int_group_wilcox <- data %>%
+  group_by(Time_Step) %>%
+  wilcox_test(
+    Cumulative_Sum ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
 
 ############################################# TIME SERIES: SLOPE #############################################
 
@@ -437,14 +500,19 @@ data_outliers_slope <- data %>%
                   identify_outliers(Sum_Slope)
 
 # Check for normality 
-data_sw_slope <- data %>%
+data_sw_slope <- try(data %>%
                  group_by(Group, Time_Step) %>%
-                 shapiro_test(Sum_Slope)
+                 shapiro_test(Sum_Slope))
 
 # Run two-way repeated-measures ANOVA 
-rmaov_slope <- data %>%
-               anova_test(formula = Sum_Slope ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum_Slope, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
-               get_anova_table(rmaov_slope)
+# rmaov_slope <- data %>%
+#               anova_test(formula = Sum_Slope ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum_Slope, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
+#               get_anova_table(rmaov_slope)
+modlm_slope <- lmer(Sum_Slope ~ Group * Time_Step + (1 | Animal_ID), data = data)
+rmaov_slope <- car::Anova(modlm_slope, REML=TRUE, test="F")
+
+# Check linear model residuals for normality 
+rmaov_slope_sw <- shapiro_test(residuals(modlm_slope))
                
 # Pairwise comparisons post hoc with Benjamini-Hochberg correction 
 pwc_slope_group <- data %>%
@@ -453,6 +521,31 @@ pwc_slope_group <- data %>%
                  Sum_Slope ~ Group, paired = FALSE, 
                  p.adjust.method = "BH"
                  )
+
+# Fit linear model to rans instead
+modglm_slope <- lmer(rank(Sum_Slope) ~ Group * Time_Step + (1 | Animal_ID), data = data)
+glm_rmaov_slope <- car::Anova(modglm_slope, REML=TRUE, test="F")
+
+# Check rank-transformed linear model residuals for normality 
+glm_rmaov_slope_sw <- shapiro_test(residuals(modglm_slope))
+
+# Pairwise comparisons of ranks post hoc with Benjamini-Hochberg correction 
+data$Sum_Slope_rank <-data$Sum_Slope
+data$Sum_Slope_rank <-rank(data$Sum_Slope)
+pwc_slope_group_rank <- data %>%
+  group_by(Time_Step) %>%
+  pairwise_t_test(
+    Sum_Slope_rank ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Nonparametric pairwise comparisons post hoc with Benjamini-Hochberg correction 
+pwc_slope_group_wilcox <- data %>%
+  group_by(Time_Step) %>%
+  wilcox_test(
+    Sum_Slope ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
 
 ############################################# BETWEEN-GROUP STATISTICS #############################################
 
@@ -474,6 +567,105 @@ aov_enhancement_volume <- aov(data = data_final_time_step, formula = Num_Voxels 
 summary(aov_enhancement_volume)
 aov_enhancement_volume_shapiro_residuals = shapiro_test(residuals(aov_enhancement_volume))
 
+############################################# PRINT ALL FINDINGS #############################################
+#Define filename
+filename_txt = paste0(directory_name,'//Final_Inferential_Statistics.txt') 
+filename_txt = file(filename_txt, 'w')
+
+cat("############################################# TIME SERIES: SUM #############################################\n", file = filename_txt)
+cat("\n\n Means and SD\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_means_sum), file = filename_txt, append = TRUE)
+cat("\n\n Outliers\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_outliers_sum), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_sw_sum), file = filename_txt, append = TRUE)
+cat("\n\n Repeated-Measures ANOVA\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(rmaov_sum), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(rmaov_sum_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_sum_group), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+cat("\n\n Repeated-Measures ANOVA on Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(glm_rmaov_sum), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(glm_rmaov_sum_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_sum_group_rank), file = filename_txt, append = TRUE)
+cat("\n\n Nonparametric Pairwise Comparisons for Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_sum_group_wilcox), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+
+cat("############################################# TIME SERIES: CUMULATIVE INTEGRAL #############################################\n", file = filename_txt, append=TRUE)
+cat("\n\n Means and SD\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_means_int), file = filename_txt, append = TRUE)
+cat("\n\n Outliers\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_outliers_int), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_sw_int), file = filename_txt, append = TRUE)
+cat("\n\n Repeated-Measures ANOVA\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(rmaov_int), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(rmaov_int_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_int_group), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+cat("\n\n Repeated-Measures ANOVA on Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(glm_rmaov_int), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Rank-Transformed Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(glm_rmaov_int_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_int_group_rank), file = filename_txt, append = TRUE)
+cat("\n\n Nonparametric Pairwise Comparisons for Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_int_group_wilcox), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+
+cat("############################################# TIME SERIES: SLOPE #############################################\n", file = filename_txt, append=TRUE)
+cat("\n\n Means and SD\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_means_slope), file = filename_txt, append = TRUE)
+cat("\n\n Outliers\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_outliers_slope), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(data_sw_slope), file = filename_txt, append = TRUE)
+cat("\n\n Repeated-Measures ANOVA\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(rmaov_slope), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(rmaov_slope_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_slope_group), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+cat("\n\n Repeated-Measures ANOVA on Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(glm_rmaov_slope), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Rank-Transformed Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(glm_rmaov_slope_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_slope_group_rank), file = filename_txt, append = TRUE)
+cat("\n\n Nonparametric Pairwise Comparisons for Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_slope_group_wilcox), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+
+cat("############################################# BETWEEN-GROUP STATISTICS #############################################\n", file = filename_txt, append=TRUE)
+cat("\n\n Time to Max Enhancement Descriptives\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(desc_time_to_max_enhancement, file = filename_txt, append = TRUE)
+cat("\n\n Time to Max Enhancement\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(summary(aov_time_to_max_enhancement), file = filename_txt, append = TRUE)
+cat("\n\n Time to Max Enhancement Residual Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(aov_time_to_max_enhancement_shapiro_residuals, file = filename_txt, append = TRUE)
+cat("\n\n Final Cumulative Enhancement Descriptives\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(desc_final_cumulative_enhancement, file = filename_txt, append = TRUE)
+cat("\n\n Final Cumulative Enhancement\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(summary(aov_final_cumulative_enhancement), file = filename_txt, append = TRUE)
+cat("\n\n Final Cumulative Enhancement Residual Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(aov_final_cumulative_enhancement_shapiro_residuals, file = filename_txt, append = TRUE)
+cat("\n\n Enhancement Volume Descriptives\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(desc_enhancement_volume , file = filename_txt, append = TRUE)
+cat("\n\n Enhancement Volume\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(summary(aov_enhancement_volume ), file = filename_txt, append = TRUE)
+cat("\n\n Enhancement Volume Residual Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(aov_enhancement_volume_shapiro_residuals, file = filename_txt, append = TRUE)
+
+
+close(filename_txt)
 
 # PART IIIB ################################ INFERENTIAL STATISTICS ON PREPROCESSED DATA - NORMALIZED ################################# 
 
@@ -490,19 +682,49 @@ data_outliers_sum_normalized <- data %>%
   identify_outliers(Sum_Normalized)
 
 # Check for normality 
-data_sw_sum_normalized <- data %>%
+data_sw_sum_normalized <- try(data %>%
   group_by(Group, Time_Step) %>%
-  shapiro_test(Sum_Normalized)
+  shapiro_test(Sum_Normalized))
 
 # Run two-way repeated-measures ANOVA 
-rmaov_sum_normalized <- data %>% 
-  anova_test(formula = Sum_Normalized ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum_Normalized, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
-get_anova_table(rmaov_sum_normalized)
+# rmaov_sum_normalized <- data %>% 
+#  anova_test(formula = Sum_Normalized ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum_Normalized, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
+# get_anova_table(rmaov_sum_normalized)
+modlm_sum_normalized <- lmer(Sum_Normalized ~ Group * Time_Step + (1 | Animal_ID), data = data)
+rmaov_sum_normalized <- car::Anova(modlm_sum_normalized, REML=TRUE, test="F")
+
+# Check linear model residuals for normality 
+rmaov_sum_normalized_sw <- shapiro_test(residuals(modlm_sum_normalized))
 
 # Pairwise comparisons post hoc with Benjamini-Hochberg correction 
 pwc_sum_group_normalized <- data %>%
   group_by(Time_Step) %>%
   pairwise_t_test(
+    Sum_Normalized ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Fit rank-transformed linear model in case general linear model residuals are not normal 
+modglm_sum_normalized <- lmer(rank(Sum_Normalized) ~ Group * Time_Step + (1 | Animal_ID), data = data)
+glm_rmaov_sum_normalized <- car::Anova(modglm_sum_normalized, REML=TRUE, test="F")
+
+# Check rank-transformed linear model residuals for normality 
+glm_rmaov_sum_normalized_sw <- shapiro_test(residuals(modglm_sum_normalized))
+
+# Rank-transformed pairwise comparisons post hoc with Benjamini-Hochberg correction 
+data$Sum_Normalized_rank <-data$Sum_Normalized
+data$Sum_Normalized_rank <-rank(data$Sum_Normalized)
+pwc_sum_group_normalized_rank <- data %>%
+  group_by(Time_Step) %>%
+  pairwise_t_test(
+    Sum_Normalized_rank ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Nonparametric pairwise comparisons post hoc with Benjamini-Hochberg correction 
+pwc_sum_group_normalized_wilcox <- data %>%
+  group_by(Time_Step) %>%
+  wilcox_test(
     Sum_Normalized ~ Group, paired = FALSE, 
     p.adjust.method = "BH"
   )
@@ -520,19 +742,49 @@ data_outliers_int_normalized <- data %>%
   identify_outliers(Cumulative_Sum_Normalized)
 
 # Check for normality 
-data_sw_int_normalized <- data %>%
+data_sw_int_normalized <- try(data %>%
   group_by(Group, Time_Step) %>%
-  shapiro_test(Cumulative_Sum_Normalized)
+  shapiro_test(Cumulative_Sum_Normalized))
 
 # Run two-way repeated-measures ANOVA 
-rmaov_int_normalized <- data %>% 
-  anova_test(formula = Cumulative_Sum_Normalized ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Cumulative_Sum_Normalized, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
-get_anova_table(rmaov_int_normalized)
+# rmaov_int_normalized <- data %>% 
+#  anova_test(formula = Cumulative_Sum_Normalized ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Cumulative_Sum_Normalized, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
+# get_anova_table(rmaov_int_normalized)
+modlm_int_normalized <- lmer(Cumulative_Sum_Normalized ~ Group * Time_Step + (1 | Animal_ID), data = data)
+rmaov_int_normalized <- car::Anova(modlm_int_normalized, REML=TRUE, test="F")
+
+# Check linear model residuals for normality 
+rmaov_int_normalized_sw <- shapiro_test(residuals(modlm_int_normalized))
 
 # Pairwise comparisons post hoc with Benjamini-Hochberg correction 
 pwc_int_group_normalized <- data %>%
   group_by(Time_Step) %>%
   pairwise_t_test(
+    Cumulative_Sum_Normalized ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Fit rank-transformed linear model in case general linear model residuals are not normal 
+modglm_int_normalized <- lmer(rank(Cumulative_Sum_Normalized) ~ Group * Time_Step + (1 | Animal_ID), data = data)
+glm_rmaov_int_normalized <- car::Anova(modglm_int_normalized, REML=TRUE, test="F")
+
+# Check rank-transformed linear model residuals for normality 
+glm_rmaov_int_normalized_sw <- shapiro_test(residuals(modglm_int_normalized))
+
+# Rank-transformed pairwise comparisons post hoc with Benjamini-Hochberg correction 
+data$Cumulative_Sum_Normalized_rank <-data$Cumulative_Sum_Normalized
+data$Cumulative_Sum_Normalized_rank <-rank(data$Cumulative_Sum_Normalized)
+pwc_int_group_normalized_rank <- data %>%
+  group_by(Time_Step) %>%
+  pairwise_t_test(
+    Cumulative_Sum_Normalized_rank ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Nonparametric pairwise comparisons post hoc with Benjamini-Hochberg correction 
+pwc_int_group_normalized_wilcox <- data %>%
+  group_by(Time_Step) %>%
+  wilcox_test(
     Cumulative_Sum_Normalized ~ Group, paired = FALSE, 
     p.adjust.method = "BH"
   )
@@ -550,17 +802,47 @@ data_outliers_slope_normalized <- data %>%
   identify_outliers(Sum_Normalized_Slope)
 
 # Check for normality 
-data_sw_slope_normalized <- data %>%
+data_sw_slope_normalized <- try(data %>%
   group_by(Group, Time_Step) %>%
-  shapiro_test(Sum_Normalized_Slope)
+  shapiro_test(Sum_Normalized_Slope))
 
 # Run two-way repeated-measures ANOVA 
-rmaov_slope_normalized <- data %>%
-  anova_test(formula = Sum_Normalized_Slope ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum_Normalized_Slope, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
-get_anova_table(rmaov_slope_normalized)
+# rmaov_slope_normalized <- data %>%
+#  anova_test(formula = Sum_Normalized_Slope ~ Group*Time_Step + Error(Animal_ID/Time_Step), dv = Sum_Normalized_Slope, wid = Animal_ID, within = c(Time_Step), detailed = TRUE)
+# get_anova_table(rmaov_slope_normalized)
+modlm_slope_normalized <- lmer(Sum_Normalized_Slope ~ Group * Time_Step + (1 | Animal_ID), data = data)
+rmaov_slope_normalized <- car::Anova(modlm_slope_normalized, REML=TRUE, test="F")
+
+# Check linear model residuals for normality 
+rmaov_slope_normalized_sw <- shapiro_test(residuals(modlm_slope_normalized))
 
 # Pairwise comparisons post hoc with Benjamini-Hochberg correction 
 pwc_slope_group_normalized <- data %>%
+  group_by(Time_Step) %>%
+  pairwise_t_test(
+    Sum_Normalized_Slope ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Nonparametric pairwise comparisons post hoc with Benjamini-Hochberg correction 
+pwc_slope_group_normalized_wilcox <- data %>%
+  group_by(Time_Step) %>%
+  wilcox_test(
+    Sum_Normalized_Slope ~ Group, paired = FALSE, 
+    p.adjust.method = "BH"
+  )
+
+# Fit log-linked gamma generalized linear model in case general linear model residuals are not normal 
+modglm_slope_normalized <- lmer(rank(Sum_Normalized_Slope) ~ Group * Time_Step + (1 | Animal_ID), data = data)
+glm_rmaov_slope_normalized <- car::Anova(modglm_slope_normalized, REML=TRUE, test="F")
+
+# Check log-linked gamma generalized linear model residuals for normality 
+glm_rmaov_slope_normalized_sw <- shapiro_test(residuals(modglm_slope_normalized))
+
+# Rank-transformed pairwise comparisons post hoc with Benjamini-Hochberg correction 
+data$Sum_Normalized_Slope_rank <-data$Sum_Normalized_Slope
+data$Sum_Normalized_Slope_rank <-rank(data$Sum_Normalized_Slope)
+pwc_slope_group_normalized_rank <- data %>%
   group_by(Time_Step) %>%
   pairwise_t_test(
     Sum_Normalized_Slope ~ Group, paired = FALSE, 
@@ -581,10 +863,9 @@ aov_final_cumulative_enhancement_normalized <- aov(data = data_final_time_step, 
 summary(aov_final_cumulative_enhancement_normalized)
 aov_final_cumulative_enhancement_shapiro_residuals_normalized = shapiro_test(residuals(aov_final_cumulative_enhancement_normalized))
 
-
-############################################# PRINT ALL FINDINGS #############################################
 #Define filename
 filename_txt = paste0(directory_name,'//Final_Inferential_Statistics_Normalized.txt') 
+filename_txt = file(filename_txt, 'w')
 
 cat("############################################# TIME SERIES: SUM - NORMALIZED #############################################\n", file = filename_txt)
 cat("\n\n Means and SD\n", file = filename_txt, append=TRUE, sep = "\n")
@@ -595,8 +876,19 @@ cat("\n\n Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(as.data.frame(data_sw_sum_normalized), file = filename_txt, append = TRUE)
 cat("\n\n Repeated-Measures ANOVA\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(get_anova_table(rmaov_sum_normalized), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(rmaov_sum_normalized_sw, file = filename_txt, append = TRUE)
 cat("\n\n Pairwise Comparisons\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(as.data.frame(pwc_sum_group_normalized), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+cat("\n\n Repeated-Measures ANOVA on Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(glm_rmaov_sum_normalized), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Rank-Transformed Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(glm_rmaov_sum_normalized_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_sum_group_normalized_rank), file = filename_txt, append = TRUE)
+cat("\n\n Nonparametric Pairwise Comparisons for Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_sum_group_normalized_wilcox), file = filename_txt, append = TRUE)
 cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
 
 cat("############################################# TIME SERIES: CUMULATIVE INTEGRAL- NORMALIZED #############################################\n", file = filename_txt, append=TRUE)
@@ -608,8 +900,19 @@ cat("\n\n Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(as.data.frame(data_sw_int_normalized), file = filename_txt, append = TRUE)
 cat("\n\n Repeated-Measures ANOVA\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(get_anova_table(rmaov_int_normalized), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(rmaov_int_normalized_sw, file = filename_txt, append = TRUE)
 cat("\n\n Pairwise Comparisons\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(as.data.frame(pwc_int_group_normalized), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+cat("\n\n Repeated-Measures ANOVA on Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(glm_rmaov_int_normalized), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Rank-Transformed Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(glm_rmaov_int_normalized_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_int_group_normalized_rank), file = filename_txt, append = TRUE)
+cat("\n\n Nonparametric Pairwise Comparisons for Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_int_group_normalized_wilcox), file = filename_txt, append = TRUE)
 cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
 
 cat("############################################# TIME SERIES: SLOPE - NORMALIZED #############################################\n", file = filename_txt, append=TRUE)
@@ -621,8 +924,19 @@ cat("\n\n Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(as.data.frame(data_sw_slope_normalized), file = filename_txt, append = TRUE)
 cat("\n\n Repeated-Measures ANOVA\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(get_anova_table(rmaov_slope_normalized), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(rmaov_slope_normalized_sw, file = filename_txt, append = TRUE)
 cat("\n\n Pairwise Comparisons\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(as.data.frame(pwc_slope_group_normalized), file = filename_txt, append = TRUE)
+cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
+cat("\n\n Repeated-Measures ANOVA on Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(get_anova_table(glm_rmaov_slope_normalized), file = filename_txt, append = TRUE)
+cat("\n\n Shapiro-Wilk Test for Rank-Transformed Linear Model Residuals\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(glm_rmaov_slope_normalized_sw, file = filename_txt, append = TRUE)
+cat("\n\n Pairwise Comparisons for Rank-Transformed Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_slope_group_normalized_rank), file = filename_txt, append = TRUE)
+cat("\n\n Nonparametric Pairwise Comparisons for Linear Model\n", file = filename_txt, append=TRUE, sep = "\n")
+captureOutput(as.data.frame(pwc_slope_group_normalized_wilcox), file = filename_txt, append = TRUE)
 cat("\n\n\n", file = filename_txt, append=TRUE, sep = "\n")
 
 cat("############################################# BETWEEN-GROUP STATISTICS - NORMALIZED #############################################\n", file = filename_txt, append=TRUE)
@@ -638,3 +952,5 @@ cat("\n\n Final Cumulative Enhancement\n", file = filename_txt, append=TRUE, sep
 captureOutput(summary(aov_final_cumulative_enhancement_normalized), file = filename_txt, append = TRUE)
 cat("\n\n Final Cumulative Enhancement Residual Shapiro-Wilk Test\n", file = filename_txt, append=TRUE, sep = "\n")
 captureOutput(aov_final_cumulative_enhancement_shapiro_residuals_normalized, file = filename_txt, append = TRUE)
+
+close(filename_txt)
